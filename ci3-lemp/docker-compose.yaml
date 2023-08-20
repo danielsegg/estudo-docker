@@ -1,0 +1,56 @@
+version: '3'
+
+# Services
+services:
+    # Nginx Service
+    nginx:
+        image: nginx:1.25
+        ports:
+            - 8000:80
+        volumes:
+            - ./src:/var/www/php
+            - ./.docker/nginx/conf.d:/etc/nginx/conf.d
+        depends_on:
+            - php
+
+    # PHP Service
+    php:
+        build: ./.docker/php
+        working_dir: /var/www/php
+        volumes:
+            - ./src:/var/www/php
+        depends_on:
+            mariadb:
+                condition: service_healthy
+
+    # MySQL Service
+    mariadb:
+        image: mariadb:10.4
+        ports:
+            - 8006:3306
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_ROOT_HOST: '%'
+            MYSQL_DATABASE: gesp
+        volumes:
+            - ./.docker/mariadb/my.cnf:/etc/mysql/my.cnf
+            - mariadb_data:/var/lib/mysql
+        healthcheck:
+            test: mysqladmin ping -h 127.0.0.1 -u root --password=$$MYSQL_ROOT_PASSWORD
+            interval: 5s
+            retries: 10
+
+    # PhpMyAdmin Service
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin:5
+        ports:
+            - 8001:80
+        environment:
+            PMA_HOST: mariadb
+        depends_on:
+            mariadb:
+                condition: service_healthy
+
+# Volumes
+volumes:
+    mariadb_data:
